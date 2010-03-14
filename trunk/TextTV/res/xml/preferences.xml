@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:numberpreference="http://schemas.android.com/apk/res/jds.texttv">
+	
+<PreferenceCategory android:title="@string/configCategories"/>			
+<jds.texttv.dialogs.NumberPreference
+		android:key="startpage"
+	 	android:title="@string/startpageTitle"
+	    android:summary="@string/startpageSummary"
+	    android:defaultValue="100"
+	    numberpreference:min="100"
+	    numberpreference:max="999"
+	    />
+		
+</PreferenceScreen>
