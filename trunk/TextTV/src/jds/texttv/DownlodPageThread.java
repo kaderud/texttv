@@ -40,15 +40,15 @@ public class DownlodPageThread extends Thread {
 	
 	@Override
 	public void run() {
-		if ( allreadyRunning ) {
-			//this.activity.UpdateArray(null,null);			
+		if ( allreadyRunning ) {			
+			activity.InsertNewPage("Busy", 0);
 			return;
 		}
 		allreadyRunning = true;
 		URL url;		
         InputStream urlStream = null;
         String FeedUrl = "http://svt.se/svttext/tv/pages/" + PageNumber + ".html";
-                
+                        
         for (RetryCount = 0; RetryCount < 3; RetryCount++)
         {
 	        try {								
@@ -56,18 +56,16 @@ public class DownlodPageThread extends Thread {
 					urlStream = url.openStream();
 					break;
 				} catch (MalformedURLException e) {
-					Log.e(TextTV.TAG, "Error getting page", e);
-					
+					Log.e(TextTV.TAG, "Error getting page", e);					
 				} catch (IOException e) {
-					Log.e(TextTV.TAG, "Error getting page", e);
-					
+					Log.e(TextTV.TAG, "Error getting page", e);					
 				}
 		
         }
         if (urlStream == null)
         {
         	allreadyRunning = false;
-        	activity.InsertNewPage("Sidan kunde inte laddas");	        	
+        	activity.InsertNewPage("Sidan kunde inte laddas", 0);	        	
 			return;
         }
         byte[] charbuffer = null;
@@ -97,7 +95,7 @@ public class DownlodPageThread extends Thread {
     		if (pagestr == null)
     		{
     			allreadyRunning = false;
-    			activity.InsertNewPage("Sidan kunde inte laddas");
+    			activity.InsertNewPage("Sidan kunde inte laddas",0);
     			return;
     		}
     		
@@ -118,7 +116,7 @@ public class DownlodPageThread extends Thread {
     		{
     			Log.d(TextTV.TAG,"Could not find data for page " + PageNumber+ ". Start = " + PreStart + " End = " + PreEnd);
     			allreadyRunning = false;
-    			activity.InsertNewPage("Sidan kunde inte laddas");
+    			activity.InsertNewPage("Sidan kunde inte laddas",0);
     			return;
     		}
     		
@@ -128,31 +126,21 @@ public class DownlodPageThread extends Thread {
     		pagestr = pagestr.replaceAll("\n", "<br>");
     		pagestr = pagestr.replaceAll("../../images","http://svt.se/svttext/images");
     		pagestr += "</body></html>";
-    		
-    		/*
-    		try {
-    			pagestr = URLEncoder.encode(pagestr,"UTF-8");
-    		} catch (UnsupportedEncodingException e) {
-    			// TODO Auto-generated catch block
-    			e.printStackTrace();
-    		}
-    		*/    		
-    		activity.InsertNewPage(pagestr);
+    		    		    	
+    		activity.InsertNewPage(pagestr, PageNumber);
         	
 	        //this.activity.UpdateArray(PodInfo);
 		} catch (IOException e) {
 			Log.e(TextTV.TAG, "Error getting page", e);
-			//this.activity.UpdateArray(null);
+			activity.InsertNewPage("Error", 0);
 		} finally {
 			try {
 				if ( urlStream != null ) {					
-					urlStream.close();		
-					//Log.d(TextTV.TAG, "Page updare clode");
+					urlStream.close();							
 				}
 			} catch (IOException e) { }
 		}
-		
-		
+			
 		allreadyRunning = false;			
 	}
 		
