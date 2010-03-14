@@ -2,4 +2,14 @@
 <resources>
     <string name="testpage">Test</string>
     <string name="app_name">TextTV</string>
+	<string name="menu_exit">Stäng av</string>
+	<string name="menu_about">About</string>
+	<string name="menu_config">Configure</string>
+	<string name="about_title">About TextTV</string>
+	<string name="about_message">Text TV is 
+created by Jesper Svensson (JDS). Tack till alla på Swedroid <a href="http://www.swedroid.se/forum/">forumet</a>.</string>
+	
+	<string name="configCategories">Inställningar</string>
+	<string name="startpageTitle">Startsida</string>
+    <string name="startpageSummary">Anger vilken sida som skall laddas vid start</string>	
 </resources>
