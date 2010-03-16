@@ -5,6 +5,7 @@
 	<string name="menu_exit">Stäng av</string>
 	<string name="menu_about">About</string>
 	<string name="menu_config">Configure</string>
+	<string name="menu_favorites">Favoriter</string>
 	<string name="about_title">About TextTV</string>
 	<string name="about_message">Text TV is 
 created by Jesper Svensson (JDS). Tack till alla på Swedroid <a href="http://www.swedroid.se/forum/">forumet</a>.</string>
@@ -12,4 +13,10 @@ created by Jesper Svensson (JDS). Tack till alla på Swedroid <a href="http://ww
 	<string name="configCategories">Inställningar</string>
 	<string name="startpageTitle">Startsida</string>
     <string name="startpageSummary">Anger vilken sida som skall laddas vid start</string>	
+    <string name="fav_add">Sidan tillagd som favorit</string>
+    <string name="fav_delete">Sidan borttagen som favorit</string>
+    <string name="favswicth_no_avail">Lägg till några favoriter först</string>
+    <string name="favswitch_off">Favoritbläddring ej aktiv</string>
+    <string name="favswitch_on">Favoritbläddring aktiv</string>
+    <string name="error_str">Programmet är upptaget med att hämta närliggande sidor eller fel uppstod vid hämtning. Försök igen!</string>
 </resources>
