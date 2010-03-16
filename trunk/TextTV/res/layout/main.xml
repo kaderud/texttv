@@ -66,25 +66,52 @@
 
 <ImageButton  
 	android:id="@+id/NextButton"
-    android:layout_width="60dip"
+    android:layout_width="45dip"
     android:layout_height="50dip"
     android:src="@drawable/next"    
     android:background="#00000000"
     android:textColor="#FFFFFF"       
-    android:layout_marginRight="20dip"
+    android:layout_marginRight="0dip"
     android:layout_alignParentRight="true"
     ImageView.ScaleType="centerInside|center_horizontal"
     android:layout_alignParentBottom="true"           
     />
+
+<ImageButton  
+	android:id="@+id/FavButton"
+    android:layout_width="45dip"
+    android:layout_height="50dip"
+    android:src="@drawable/favorite"    
+    android:background="#00000000"
+    android:textColor="#FFFFFF"       
+    android:layout_marginRight="40dip"
+    android:layout_alignParentRight="true"
+    ImageView.ScaleType="centerInside|center_horizontal"
+    android:layout_alignParentBottom="true"           
+    />
+
+<ImageButton  
+	android:id="@+id/FavSwitchButton"
+    android:layout_width="45dip"
+    android:layout_height="50dip"
+    android:src="@drawable/fav_switch"    
+    android:background="#00000000"
+    android:textColor="#FFFFFF"       
+    android:layout_marginLeft="45dip"
+    android:layout_alignParentLeft="true"
+    ImageView.ScaleType="centerInside|center_horizontal"
+    android:layout_alignParentBottom="true"           
+    />
+
     
 <ImageButton  
 	android:id="@+id/PrevButton"
-    android:layout_width="60dip" 
+    android:layout_width="45dip" 
     android:layout_height="50dip"
     android:src="@drawable/prev"    
     android:background="#00000000"
     android:textColor="#FFFFFF"           
-    android:layout_marginLeft="20dip"      
+    android:layout_marginLeft="0dip"      
     android:layout_alignParentLeft="true"
     ImageView.ScaleType="centerInside|center_horizontal"
     android:layout_alignParentBottom="true"     
