@@ -21,7 +21,6 @@ import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
-
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
@@ -30,8 +29,12 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
+import android.content.res.Resources;
+import android.database.Cursor;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.preference.PreferenceManager;
 import android.text.method.LinkMovementMethod;
 import android.util.DisplayMetrics;
@@ -54,6 +57,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class TextTV extends Activity implements OnGestureListener {
 	public static final String TAG = "TextTV";
@@ -64,15 +68,22 @@ public class TextTV extends Activity implements OnGestureListener {
 	private int CurrentPageNumber = 0;
 	private String CurrentPage = null;
 	private boolean WaitingForPage = false;
-	private List<PageCach> PageCachArray = new ArrayList<PageCach>();
+	private boolean FavSwitchMode = false;
+	private static PageCachHandler PageCachHandler = new PageCachHandler(); 
 	
+	private static final int MESSAGE_NEWPAGE = 0;
+	private static final int MESSAGE_ERROR = 1;
+		
 	private static final int MENU_EXIT = 0;
 	private static final int MENU_ABOUT = 1;
 	private static final int MENU_CONFIG = 2;
+	private static final int MENU_FAVORITES = 3;
 		
 	private GestureDetector gestureScanner; 
 	private boolean Port = true;
 	private int DimX, DimY;
+	
+	private TextTVDBAdapter TextTVDB;
 	
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -81,6 +92,10 @@ public class TextTV extends Activity implements OnGestureListener {
         requestWindowFeature  (Window.FEATURE_NO_TITLE);
         
         setContentView(R.layout.main);
+        
+        TextTVDB = new TextTVDBAdapter(this);
+		TextTVDB.open();		
+		
         
         WebView WV = (WebView) findViewById(R.id.MainWebView);
         WV.getSettings().setBuiltInZoomControls(true);
@@ -114,7 +129,7 @@ public class TextTV extends Activity implements OnGestureListener {
 	        		InputMethodManager imm = (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
 	        		imm.hideSoftInputFromWindow(PageNumber.getWindowToken(), 0);	        		
 	        		
-	        		RequestNewPage(Page);
+	        		RequestNewPage(Page, true);
         		}
         	}
 		});
@@ -124,24 +139,38 @@ public class TextTV extends Activity implements OnGestureListener {
         	public void onClick(View v) {	
         		if (!WaitingForPage)
         		{
-	        		EditText PageNumber = (EditText) findViewById(R.id.PageNumber);
-	        		int NewPage = 0;
-					try
-					{							
-					NewPage = Integer.parseInt(PageNumber.getEditableText().toString());
-					}	
-					catch (NumberFormatException e)
-					{
-					return;	
-					}
-	        		int Page = NewPage;
-	        		
-	        		if (Page < 999)
-	        		{
-	        			Page++;
-	        			PageNumber.setText(String.valueOf(Page));
+        			EditText PageNumber = (EditText) findViewById(R.id.PageNumber);
+        			int Page = 100;
+        			
+        			//Check the mode
+        			if (FavSwitchMode)
+        			{
+        				Cursor FavCursor = TextTVDB.getNextFavorite(CurrentPageNumber);
+        				Page = FavCursor.getInt(TextTVDBAdapter.INDEX_PAGE);
+        				FavCursor.close();
+        				PageNumber.setText(String.valueOf(Page));
 	        			CurrentPageNumber = Page;
-	        		}
+        			}
+        			else
+        			{		        		
+		        		int NewPage = 0;
+						try
+						{							
+						NewPage = Integer.parseInt(PageNumber.getEditableText().toString());
+						}	
+						catch (NumberFormatException e)
+						{
+						return;	
+						}
+		        		Page = NewPage;
+		        		
+		        		if (Page < 999)
+		        		{
+		        			Page++;
+		        			PageNumber.setText(String.valueOf(Page));
+		        			CurrentPageNumber = Page;
+		        		}
+        			}
 	        		
 	        		InputMethodManager imm = (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
 	        		imm.hideSoftInputFromWindow(PageNumber.getWindowToken(), 0);
@@ -149,7 +178,7 @@ public class TextTV extends Activity implements OnGestureListener {
 	        		//WebView WV = (WebView) findViewById(R.id.MainWebView);
 	        		//WV.startAnimation(SlidOutAnimation);        			        			        	
 	        		
-	        		RequestNewPage(Page);
+	        		RequestNewPage(Page, false);
         		}
         	}
 		});
@@ -159,33 +188,47 @@ public class TextTV extends Activity implements OnGestureListener {
         	public void onClick(View v) {
         		if (!WaitingForPage)
         		{
-	        		EditText PageNumber = (EditText) findViewById(R.id.PageNumber);
-	        		int NewPage = 0;
-					try
-					{							
-					NewPage = Integer.parseInt(PageNumber.getEditableText().toString());
-					}	
-					catch (NumberFormatException e)
-					{
-					return;	
-					}
-	        		int Page = NewPage;	        		
-	        		
-	        		if (Page > 100)
-	        		{
-	        			Page--;
-	        			PageNumber.setText(String.valueOf(Page));
+        			EditText PageNumber = (EditText) findViewById(R.id.PageNumber);
+        			int Page = 100;
+        			
+        			//Check the mode
+        			if (FavSwitchMode)
+        			{
+        				Cursor FavCursor = TextTVDB.getPrevFavorite(CurrentPageNumber);
+        				Page = FavCursor.getInt(TextTVDBAdapter.INDEX_PAGE);
+        				FavCursor.close();
+        				PageNumber.setText(String.valueOf(Page));
 	        			CurrentPageNumber = Page;
-	        		}
-	        			
+        			}
+        			else
+        			{		        		
+		        		int NewPage = 0;
+						try
+						{							
+						NewPage = Integer.parseInt(PageNumber.getEditableText().toString());
+						}	
+						catch (NumberFormatException e)
+						{
+						return;	
+						}
+		        		Page = NewPage;
+		        		
+		        		if (Page > 100)
+		        		{
+		        			Page--;
+		        			PageNumber.setText(String.valueOf(Page));
+		        			CurrentPageNumber = Page;
+		        		}
+
+        			}
 	        		
 	        		InputMethodManager imm = (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
 	        		imm.hideSoftInputFromWindow(PageNumber.getWindowToken(), 0);
-	        		
+	        		        		
 	        		//WebView WV = (WebView) findViewById(R.id.MainWebView);
-	        		//WV.startAnimation(SlidOutAnimation);
+	        		//WV.startAnimation(SlidOutAnimation);        			        			        	
 	        		
-	        		RequestNewPage(Page);
+	        		RequestNewPage(Page, false);
         		}
     		
         	}
@@ -197,6 +240,69 @@ public class TextTV extends Activity implements OnGestureListener {
         		((EditText)v).setText("");
         	}
         	        	
+		});
+        
+        ImageButton FavButton = (ImageButton) findViewById(R.id.FavButton);        
+        FavButton.setOnClickListener(new View.OnClickListener() {
+        	public void onClick(View v) {	
+        		Cursor DBCursor;
+        		DBCursor = TextTVDB.fetchFavorite(CurrentPageNumber);
+        		ImageButton FavButton = (ImageButton) findViewById(R.id.FavButton);
+        		Context context = getApplicationContext();		
+       			int duration = Toast.LENGTH_LONG;
+        		
+        		if ((DBCursor != null) && (DBCursor.getCount() > 0))
+        		{
+        			//Remove if from the favorites
+        			TextTVDB.deleteFavorite(CurrentPageNumber);
+        			Toast toast = Toast.makeText(context, R.string.fav_delete, duration);
+            		toast.show();
+        		}
+        		else
+        		{        			
+        			//Add it to the favorites
+        			TextTVDB.createFavorite(CurrentPageNumber, "");
+        			Toast toast = Toast.makeText(context, R.string.fav_add, duration);
+        			toast.show();
+        		}
+        		DBCursor.close();
+        		UpdateFavicon(CurrentPageNumber);
+        	}
+		});
+        
+        ImageButton FavSwitchButton = (ImageButton) findViewById(R.id.FavSwitchButton);        
+        FavSwitchButton.setOnClickListener(new View.OnClickListener() {
+        	public void onClick(View v) {	
+        		Cursor DBCursor;
+        		DBCursor = TextTVDB.fetchAllFavorites();
+        		ImageButton FavButton = (ImageButton) findViewById(R.id.FavButton);
+        		Context context = getApplicationContext();		
+       			int duration = Toast.LENGTH_LONG;
+        		
+        		if ((DBCursor != null) && (DBCursor.getCount() > 0))
+        		{
+        			if (FavSwitchMode)
+        			{
+        			Toast toast = Toast.makeText(context, R.string.favswitch_off, duration);
+        			toast.show();
+        			FavSwitchMode = false;
+        			}
+        			else
+        			{
+        			Toast toast = Toast.makeText(context, R.string.favswitch_on, duration);
+        			toast.show();
+        			FavSwitchMode = true;
+        			}        			
+        		}
+        		else
+        		{        			
+        			        			
+        			Toast toast = Toast.makeText(context, R.string.favswicth_no_avail, duration);
+        			toast.show();
+        		}
+        		DBCursor.close();
+        		UpdateFavSwitchicon(FavSwitchMode);
+        	}
 		});
         
         PageText.setOnKeyListener(new View.OnKeyListener() {					
@@ -223,7 +329,7 @@ public class TextTV extends Activity implements OnGestureListener {
 		        		//WebView WV = (WebView) findViewById(R.id.MainWebView);
 		        		//WV.startAnimation(SlidOutAnimation);
 		        		
-		        		RequestNewPage(Page);
+		        		RequestNewPage(Page, false);
 	        		}
 				}
 				return false;
@@ -292,7 +398,7 @@ public class TextTV extends Activity implements OnGestureListener {
 				return true;	
 				}
 	    		
-	    		RequestNewPage(NewPage);
+	    		RequestNewPage(NewPage, false);
 			}
 			return true;
 		}
@@ -314,6 +420,9 @@ public class TextTV extends Activity implements OnGestureListener {
 				{
 					CurrentPageNumber = TempInt;
 				}
+				
+				FavSwitchMode = savedInstanceState.getBoolean("FAVSWITCHMODE");
+				
 	  		} catch (Exception e) {
 	  			Log.e(TAG, "Problem restroting saved data", e);
 	  		}
@@ -345,8 +454,11 @@ public class TextTV extends Activity implements OnGestureListener {
 			
 			PageNumber = (EditText) findViewById(R.id.PageNumber);
 			PageNumber.setText(String.valueOf(tempint));
-			RequestNewPage(tempint);
+			RequestNewPage(tempint, true);
+			CurrentPageNumber = tempint;
 		}
+		
+		UpdateFavSwitchicon(FavSwitchMode);
         
     }
     
@@ -354,21 +466,57 @@ public class TextTV extends Activity implements OnGestureListener {
 	public void onSaveInstanceState(Bundle savedInstanceState) {		
 		savedInstanceState.putInt("CurrentPageNumber", CurrentPageNumber);				
 		savedInstanceState.putString("CurrentPage", CurrentPage);
+		savedInstanceState.putBoolean("FAVSWITCHMODE", FavSwitchMode);
 		Log.d(TAG,"onSaveInstanceState");
 		super.onSaveInstanceState(savedInstanceState);
 	}
     
     public void InsertNewPage(String PageData, int Page)
-    {
-    	if (waitingfordata != null)
-  		  waitingfordata.dismiss();    	    
-    	
+    {    	    
     	WebView WV = (WebView) findViewById(R.id.MainWebView);
     	
-    	WV.loadDataWithBaseURL (null, header+PageData, "text/html", "ISO-8859-1","about:blank");
-    	CurrentPage = PageData;
-    	WaitingForPage = false;
-    	    		
+    	//Log.d(TAG, "InsertNewPage number: " + Page);
+    	
+    	if (CurrentPageNumber == Page)
+    	{    		    	
+	    	WV.loadDataWithBaseURL (null, header+PageData, "text/html", "ISO-8859-1","about:blank");    	
+	    	CurrentPage = PageData;
+	    	
+	    	if (waitingfordata != null)
+  	  		  waitingfordata.dismiss();
+	    	WaitingForPage = false;
+	    	
+	    	
+	    	Message m = new Message();
+	        m.what = TextTV.MESSAGE_NEWPAGE;
+	        m.getData().putInt("PAGE", Page);
+	        TextTV.this.viewUpdateHandler.sendMessage(m);
+    	}
+    	
+    	if (WaitingForPage && (Page == 0))
+    	{
+    		//Error page. Remove dialog so it will not 
+    		//get stuck
+    		if (waitingfordata != null)    		    		 
+  	  		  waitingfordata.dismiss();
+    		
+    		
+    		WaitingForPage = false;
+    		    				
+			Message m = new Message();
+	        m.what = TextTV.MESSAGE_ERROR;
+	        m.getData().putInt("PAGE", Page);
+	        TextTV.this.viewUpdateHandler.sendMessage(m);
+   			
+    	}
+    	
+    	//Insert the page in the cach
+    	if (Page >= 100)
+    	{
+    		PageCach NewCachItem = new PageCach(PageData, Page, false, true);    	
+    		PageCachHandler.AddCachItem(NewCachItem);
+    	}
+    	    	
     }
 
 	@Override
@@ -376,15 +524,91 @@ public class TextTV extends Activity implements OnGestureListener {
 		if (waitingfordata != null)
 	  		  waitingfordata.dismiss();    	
 		
+		TextTVDB.close();
+		
 		super.onDestroy();
 	}
     
-	private void RequestNewPage(int PageNumber)
+	private void RequestNewPage(int PageNumber, boolean ForceFetch)
 	{
-		DownlodPageThread DownlodThread = new DownlodPageThread(TextTV.this,PageNumber);        		
-		DownlodThread.start();
-		waitingfordata = ProgressDialog.show(TextTV.this,"TextTV","Laddar");
-		WaitingForPage = true;
+		//check if the item is in the cach already		
+		int CachIndex = PageCachHandler.PageInCach(PageNumber);
+		PageCach PageInCach;
+		int[] PageList;
+		if ((!ForceFetch) && (CachIndex >= 0))
+		{
+			PageInCach = PageCachHandler.GetCachItem(CachIndex);			
+			WebView WV = (WebView) findViewById(R.id.MainWebView);							
+			
+			//WV.startAnimation(SlidOutAnimation);
+			WV.loadDataWithBaseURL (null, header+PageInCach.GetPageData(), "text/html", "ISO-8859-1","about:blank");	    	
+	    	CurrentPage = PageInCach.GetPageData();
+	    	UpdateFavicon(PageNumber);
+	    	
+	    	if (!FavSwitchMode)
+	    	{
+	    		PageList = PageCachHandler.GetCachList(PageNumber, false);
+	    	}
+	    	else
+	    	{
+	    		PageList = GetFavoriteList(PageNumber, false);
+	    	}
+	    	
+	    	if (PageList.length > 0)
+	    	{
+	    		//Prefetch new pages
+	    		DownlodPageThread DownlodThread = new DownlodPageThread(TextTV.this,PageList);        		
+				DownlodThread.start();
+	    	}
+		}
+		else
+		{					  			
+			if (!FavSwitchMode)
+	    	{
+	    		PageList = PageCachHandler.GetCachList(PageNumber, ForceFetch);
+	    	}
+	    	else
+	    	{
+	    		PageList = GetFavoriteList(PageNumber, ForceFetch);
+	    	}
+			
+			WaitingForPage = true;
+			waitingfordata = ProgressDialog.show(TextTV.this,"TextTV","Laddar");
+			DownlodPageThread DownlodThread = new DownlodPageThread(TextTV.this,PageList);        		
+			DownlodThread.start();
+			
+			
+		}
+	}
+	
+	private void UpdateFavSwitchicon(boolean FavSwitchMode)
+	{
+		ImageButton FavSwitchButton = (ImageButton) findViewById(R.id.FavSwitchButton);
+		if (FavSwitchMode)
+		{
+			FavSwitchButton.setImageResource(R.drawable.fav_switch_pressed);
+		}
+		else
+		{
+			FavSwitchButton.setImageResource(R.drawable.fav_switch);
+		}
+	}
+	
+	private void UpdateFavicon(int PageNumber) 
+	{
+		//Check if the page is in the DB
+		Cursor DBCursor = null;
+		DBCursor = TextTVDB.fetchFavorite(PageNumber);
+		ImageButton FavButton = (ImageButton) findViewById(R.id.FavButton);
+		if ((DBCursor != null) && (DBCursor.getCount() > 0))
+		{
+			FavButton.setImageResource(R.drawable.favorite_pressed);			
+		}
+		else
+		{
+			FavButton.setImageResource(R.drawable.favorite);
+		}
+		DBCursor.close();
 	}
     
 	@Override
@@ -397,6 +621,8 @@ public class TextTV extends Activity implements OnGestureListener {
 			setIcon(android.R.drawable.ic_menu_help);
 		menu.add(0, TextTV.MENU_CONFIG, 0, R.string.menu_config).
 			setIcon(android.R.drawable.ic_menu_save);
+		menu.add(0, TextTV.MENU_FAVORITES, 0, R.string.menu_favorites).
+			setIcon(R.drawable.ic_menu_star);
 		return true;
 	}
 
@@ -413,6 +639,10 @@ public class TextTV extends Activity implements OnGestureListener {
 		case TextTV.MENU_CONFIG:
 			handleMenuConfig();
 			return true;
+		case TextTV.MENU_FAVORITES:
+			ShowFavoritesDialog();
+			return true;
+		
 		}
 		
 		return super.onMenuItemSelected(featureId, item);
@@ -528,4 +758,96 @@ public class TextTV extends Activity implements OnGestureListener {
 
 	    } 
 		*/
+		
+	Handler viewUpdateHandler = new Handler(){
+	        public void handleMessage(Message msg) {
+	        	Context context = getApplicationContext();
+	        	int duration = Toast.LENGTH_LONG;
+	             switch (msg.what) {
+	             case MESSAGE_NEWPAGE :
+	            	 int NewPage = msg.getData().getInt("PAGE");
+	            	 UpdateFavicon(NewPage);
+	            	 break;
+	             case MESSAGE_ERROR : 	            				        		
+	        		Toast toast = Toast.makeText(context, R.string.error_str, duration);
+	     			toast.show();
+	     			break;
+	             }
+	        }
+	};
+	
+	void ShowFavoritesDialog()
+	{
+		final Cursor FavDialogCursor = TextTVDB.fetchAllFavorites();		
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);		
+		builder.setTitle("Välj favorit");
+		builder.setSingleChoiceItems(FavDialogCursor, -1, TextTVDBAdapter.KEY_PAGE, new DialogInterface.OnClickListener() {
+		    public void onClick(DialogInterface dialog, int item) {
+		        dialog.dismiss();
+		        //Cursor SelFavCursor = TextTVDB.fetchAllFavorites();
+		        FavDialogCursor.moveToPosition(item);
+		        
+		        EditText PageNumber = (EditText) findViewById(R.id.PageNumber);
+        		CurrentPageNumber = FavDialogCursor.getInt(TextTVDBAdapter.INDEX_PAGE);
+        		PageNumber.setText(String.valueOf(CurrentPageNumber));
+        		        		
+		        RequestNewPage(CurrentPageNumber, false);
+		        FavDialogCursor.close();
+		    }
+		});
+		AlertDialog alert = builder.create();
+		alert.show();
+		
+
+	}
+	
+	public int[] GetFavoriteList(int StartPage, boolean ForceStartpageReload)
+	{		
+		int[] ReqList = new int[11]; //Max size
+		int CurrIndex = 0;
+		int CurrPage;
+		int Count =0;
+		
+		if ((ForceStartpageReload) || (PageCachHandler.PageInCach(StartPage) < 0))
+		{
+			Count++;
+			ReqList[CurrIndex++] = StartPage;
+		}
+		
+		//Check 5 pages before and 5 pages after 
+		//and check which of the that is not in the 
+		//cach
+		Cursor FavCursor = TextTVDB.getNextFavorite(StartPage);
+		int FavCount;		
+		for (FavCount = 0; FavCount < FavCursor.getCount(); FavCount++)
+		{			
+			CurrPage = FavCursor.getInt(TextTVDBAdapter.INDEX_PAGE);
+			if (PageCachHandler.PageInCach(CurrPage) < 0)
+			{
+				Count++;
+				ReqList[CurrIndex++] = CurrPage;
+			}
+		}
+		FavCursor.close();
+		FavCursor = TextTVDB.getNextFavorite(StartPage);
+		for (FavCount = 0; FavCount < FavCursor.getCount(); FavCount++)
+		{
+			CurrPage = FavCursor.getInt(TextTVDBAdapter.INDEX_PAGE);
+			if (PageCachHandler.PageInCach(CurrPage) < 0)
+			{
+				Count++;
+				ReqList[CurrIndex++] = CurrPage;
+			}
+		}
+		FavCursor.close();
+		
+		int[] EndReqList = new int[Count]; //Final size
+		for(CurrIndex =0; CurrIndex< Count; CurrIndex++)
+		{
+			EndReqList[CurrIndex] = ReqList[CurrIndex];
+		}		
+				
+		return ReqList;
+	}
+
 }
