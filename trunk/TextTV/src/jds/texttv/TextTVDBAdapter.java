@@ -285,6 +285,7 @@ public class TextTVDBAdapter {
                     KEY_PAGE, KEY_NAME}, KEY_PAGE + "=" + Page, null,
                     null, null, null, null);
 	    if (mCursor != null) {
+	    	
 	        return false;
 	    }
 	    return true;
