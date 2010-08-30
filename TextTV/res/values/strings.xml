@@ -7,9 +7,7 @@
 	<string name="menu_config">Configure</string>
 	<string name="menu_favorites">Favoriter</string>
 	<string name="about_title">About TextTV</string>
-	<string name="about_message">Text TV is 
-created by Jesper Svensson (JDS). Tack till alla på Swedroid <a href="http://www.swedroid.se/forum/">forumet</a>.</string>
-	
+	<string name="about_message">Text TV is created by Jesper Svensson (JDS). Tack till alla på Swedroid <a href="http://www.swedroid.se/forum/">forumet</a>. Programmet är gratis men ge gärna en <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&amp;hosted_button_id=QDQJP53LAHFEL">donation</a>.</string>	
 	<string name="configCategories">Inställningar</string>
 	<string name="startpageTitle">Startsida</string>
     <string name="startpageSummary">Anger vilken sida som skall laddas vid start</string>	
@@ -18,5 +16,5 @@ created by Jesper Svensson (JDS). Tack till alla på Swedroid <a href="http://ww
     <string name="favswicth_no_avail">Lägg till några favoriter först</string>
     <string name="favswitch_off">Favoritbläddring ej aktiv</string>
     <string name="favswitch_on">Favoritbläddring aktiv</string>
-    <string name="error_str">Programmet är upptaget med att hämta närliggande sidor eller fel uppstod vid hämtning. Försök igen!</string>
+    <string name="error_str">Programmet är upptaget med att hämta närliggande sidor eller fel uppstod vid hämtning. Försök igen!</string>	
 </resources>
