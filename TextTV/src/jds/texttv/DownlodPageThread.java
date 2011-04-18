@@ -43,29 +43,38 @@ public class DownlodPageThread extends Thread {
 	final static int CHANNEL_TV3 = 1;
 	final static int CHANNEL_TV4 = 2;
 	private int CurrentChannel;
+	private int Theme;
 	
-	final static String SVT_URL = "http://svt.se/svttext/tv/pages/";
+	//final static String SVT_URL = "http://svt.se/svttext/tv/pages/";
+	//final static String SVT_URL = "http://svt.se/svttext/webXL/pages/";
+	//final static String SVT_URL = "http://svt.se/svttext/webL/pages/";
+	final static String SVT_URL_WEB = "http://svt.se/svttext/web/pages/";
+	final static String SVT_URL_CLASSIC = "http://svt.se/svttext/tv/pages/";
 	final static String TV3_URL = "http://texttv.tv3.se/texttv/";
 	final static String TV4_URL = "";
 		
-	public DownlodPageThread(Activity activity, int Page[], int Direction) {
+	public DownlodPageThread(Activity activity, int Page[], int Direction, int Theme) {
 		this.activity = (TextTV) activity;
 		this.PageNumber = Page.clone();
 		this.Direction = Direction;
 		this.CurrentChannel = DownlodPageThread.CHANNEL_SVT;
+		this.Theme = Theme;
 		//this.CurrentChannel = DownlodPageThread.CHANNEL_TV3;
 	}
 	
 	@Override
 	public void run() {
+		/*
 		if ( allreadyRunning ) {			
 			Log.d(TextTV.TAG,"Already running download thread");
 			activity.InsertNewPage("Busy", 0, false,false);
 			return;
 		}
+		*/
+		
 		allreadyRunning = true;
 		
-		Log.d(TextTV.TAG,"Running download thread");
+		//Log.d(TextTV.TAG,"Running download thread");
 		
 		int PageListIndex = 0;
 		PageIsOffline = false;
@@ -247,7 +256,7 @@ public class DownlodPageThread extends Thread {
 			PageListIndex++;
 		}
 		
-		Log.d(TextTV.TAG,"DownloadPageThread completed with no errors");
+		//Log.d(TextTV.TAG,"DownloadPageThread completed with no errors");
 		allreadyRunning = false;			
 	}
 	
@@ -256,7 +265,10 @@ public class DownlodPageThread extends Thread {
 		switch (this.CurrentChannel)
 		{
 		case CHANNEL_SVT :
-			return SVT_URL + this.CurrPageNumber + ".html";			
+			if (Theme == TextTV.THEME_CLASSIC)
+			return SVT_URL_CLASSIC + this.CurrPageNumber + ".html";
+			else
+			return SVT_URL_WEB + this.CurrPageNumber + ".html";	
 		case CHANNEL_TV3 :
 			return TV3_URL + this.CurrPageNumber + "-01.htm";
 		case CHANNEL_TV4 :
@@ -320,7 +332,7 @@ public class DownlodPageThread extends Thread {
 			PageStringToParse += "</td></tr></table></body></html>";
 			String Header = "";
 			Header = "<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=iso-8859-1\">";  
-			Header += "<title></title></head><body bgcolor=\"#000000\" topmargin=\"0\" leftmargin=\"0\" marginwidth=\"0\" marginheight=\"0\">"; 
+			Header += "<title></title></head><body bgcolor=\"#000000\" topmargin=\"0\" leftmargin=\"0\" marginwidth=\"0\" marginheight=\"0\">"; 			
 			Header += "<table border=\"0\" cellspacing=\"0\" cellpadding=\"0\" width=\"400\" height=\"360\">";  
 			Header += "<tr><td width=\"400\" height=\"300\" align=\"left\" valign=\"top\" rowspan=\"3\">";
 			Header += "<img src=\"http://texttv.tv3.se/texttv/images/" + this.CurrPageNumber + "-01.gif\""; 

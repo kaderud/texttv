@@ -11,5 +11,13 @@
 	    numberpreference:min="100"
 	    numberpreference:max="999"
 	    />
+
+<ListPreference
+        android:title="@string/themelabel"
+        android:summary="@string/themesummary"        
+        android:key="theme"
+        android:defaultValue="0"
+        android:entries="@array/theme"
+        android:entryValues="@array/theme_val" /> 	    
 		
 </PreferenceScreen>

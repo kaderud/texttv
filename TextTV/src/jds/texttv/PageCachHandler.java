@@ -9,6 +9,11 @@ import android.util.Log;
 public class PageCachHandler {
 	private List<PageCach> PageCachArray = new ArrayList<PageCach>();
 	
+	public void ClearCach()
+	{
+		PageCachArray.clear();
+	}
+	
 	public int AddCachItem(PageCach NewCachItem) {
 		//Check if the item is in the
 		//cach already
