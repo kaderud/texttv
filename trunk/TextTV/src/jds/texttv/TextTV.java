@@ -17,10 +17,10 @@ package jds.texttv;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
@@ -28,10 +28,11 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.content.res.Configuration;
-import android.content.res.Resources;
 import android.database.Cursor;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -39,15 +40,12 @@ import android.preference.PreferenceManager;
 import android.text.method.LinkMovementMethod;
 import android.util.DisplayMetrics;
 import android.util.Log;
-import android.view.GestureDetector;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
-import android.view.GestureDetector.OnGestureListener;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.view.inputmethod.InputMethodManager;
@@ -59,7 +57,7 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class TextTV extends Activity {
+public class TextTV extends Activity implements OnSharedPreferenceChangeListener {
 	public static final String TAG = "TextTV";
 	private String header;
 	private ProgressDialog waitingfordata;
@@ -72,20 +70,28 @@ public class TextTV extends Activity {
 	private boolean FavSwitchMode = false;
 	private static PageCachHandler PageCachHandler = new PageCachHandler(); 
 	
+	private static List<Integer> HistoryList = new ArrayList<Integer>();
+	
 	private static final int MESSAGE_NEWPAGE = 0;
 	private static final int MESSAGE_ERROR = 1;
+	public static final int MESSAGE_NEXT = 2;
+	public static final int MESSAGE_PREV = 2;
+	
+	public static final int THEME_CLASSIC = 0;
+	public static final int THEME_WEB = 1;
 		
 	private static final int MENU_EXIT = 0;
 	private static final int MENU_ABOUT = 1;
 	private static final int MENU_CONFIG = 2;
 	private static final int MENU_FAVORITES = 3;
+	private static final int MENU_DONATE = 4;
 	
 	public static final int DIR_NONE = 0;
 	public static final int DIR_NEXT = 1;
 	public static final int DIR_PREV = 2;
 			
 	private boolean Port = true;
-	private int DimX, DimY;
+	private int DimX, DimY, Theme;
 	
 	private TextTVDBAdapter TextTVDB;
 	
@@ -98,7 +104,14 @@ public class TextTV extends Activity {
         setContentView(R.layout.main);
         
         TextTVDB = new TextTVDBAdapter(this);
-		TextTVDB.open();		
+		TextTVDB.open();	
+		
+		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+		PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
+		prefs.registerOnSharedPreferenceChangeListener(this);
+		
+		String ThemeStr = prefs.getString("theme", "0");
+		Theme = Integer.valueOf(ThemeStr);
 		
         
         WebView WV = (WebView) findViewById(R.id.MainWebView);
@@ -242,32 +255,22 @@ public class TextTV extends Activity {
         	WV.setInitialScale((int)Scaling);
         }
         else
-        {
-        	Port = false;
+        {        	
+        	DisplayMetrics dm = new DisplayMetrics();
+            this.getWindowManager().getDefaultDisplay().getMetrics(dm);
+            DimY = dm.heightPixels;
+            DimX = dm.widthPixels; 
+                            
+        	//Scale the WebView
+        	//double Scaling = (100*(((double)DimX)/440)); //This will fill the screen but will force the user to scroll alot
+            double Scaling = (100*(((double)DimY)/440));
+        	Log.d("TextTV", "Scaling to " + Scaling + "percent");
+        	WV.setInitialScale((int)Scaling);
+        	Port = false;        	
         }
         
-        
-        WV.setBackgroundColor(Color.BLACK);
-        
-        InputStream  HeaderPageStream = getResources().openRawResource(R.raw.header);
-        byte[] charbuffer = null;
-        int Size=0;
-        charbuffer = new byte[5000];
-        try {
-			Size = HeaderPageStream.read(charbuffer, 0, 5000);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		header = null;
-
-		try {
-			header = new String(charbuffer,0,Size,"utf-8");
-		} catch (UnsupportedEncodingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-								
+        SetHeader();
+        								
         //WV.loadData(header+pagestr, "text/html", "utf-8");
 		
 		WV.setWebViewClient(new WebViewClient() {
@@ -289,7 +292,7 @@ public class TextTV extends Activity {
 				return true;	
 				}
 				CurrentPageNumber = NewPage;
-	    		RequestNewPage(NewPage, false, DIR_NONE);
+	    		RequestNewPage(NewPage, false, DIR_NONE,false);
 			}
 			return true;
 		}
@@ -328,7 +331,7 @@ public class TextTV extends Activity {
 		}
 		else
 		{	
-			SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+			//SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
 			String startPagePregStr;
 			
 			startPagePregStr = prefs.getString("startpage", "0");
@@ -346,12 +349,47 @@ public class TextTV extends Activity {
 			PageNumber = (EditText) findViewById(R.id.PageNumber);
 			PageNumber.setText(String.valueOf(tempint));
 			CurrentPageNumber = tempint;
-			RequestNewPage(tempint, true, DIR_NONE);
+			RequestNewPage(tempint, true, DIR_NONE,false);
 			
 		}
 		
 		UpdateFavSwitchicon(FavSwitchMode);
         
+    }
+    
+    void SetHeader()
+    {
+    	WebView WV = (WebView) findViewById(R.id.MainWebView);
+	    InputStream HeaderPageStream = null;
+	    if (Theme == TextTV.THEME_CLASSIC)
+	    {
+	    	WV.setBackgroundColor(Color.BLACK);
+	    	HeaderPageStream = getResources().openRawResource(R.raw.header);
+	    }
+	    else
+	    {
+	    	WV.setBackgroundColor(Color.WHITE);
+	    	HeaderPageStream = getResources().openRawResource(R.raw.headerxmls);
+	    }
+	    
+	               
+	    byte[] charbuffer = null;
+	    int Size=0;
+	    charbuffer = new byte[5000];
+	    try {
+			Size = HeaderPageStream.read(charbuffer, 0, 5000);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		header = null;
+	
+		try {
+			header = new String(charbuffer,0,Size,"utf-8");
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}		
     }
     
     @Override
@@ -375,6 +413,7 @@ public class TextTV extends Activity {
 	    	{	
     		WV.loadDataWithBaseURL (null, header+PageData, "text/html", "ISO-8859-1","about:blank");    	
 	    	CurrentPage = PageData;
+	    	HistoryList.add(Page);
 	    		    	
 	    	if (waitingfordata != null)
   	  		  waitingfordata.dismiss();
@@ -429,7 +468,7 @@ public class TextTV extends Activity {
 		super.onDestroy();
 	}
     
-	private void RequestNewPage(int PageNumber, boolean ForceFetch, int Direction)
+	private void RequestNewPage(int PageNumber, boolean ForceFetch, int Direction, boolean NoNewCachEntry)
 	{
 		//check if the item is in the cach already		
 		int CachIndex = PageCachHandler.PageInCach(PageNumber);
@@ -482,8 +521,9 @@ public class TextTV extends Activity {
 			WebView WV = (WebView) findViewById(R.id.MainWebView);							
 						
 			WV.loadDataWithBaseURL (null, header+PageInCach.GetPageData(), "text/html", "ISO-8859-1","about:blank");
+									
 			if (Direction != TextTV.DIR_NONE)
-			{
+			{						
 				if (Direction == TextTV.DIR_NEXT)
 				{
 					WV.startAnimation(SlidInFromRigthAnimation);
@@ -491,11 +531,13 @@ public class TextTV extends Activity {
 				else
 				{
 					WV.startAnimation(SlidInFromLeftAnimation);
-				}
-			}
+				}				
+			}			
 			
 	    	CurrentPage = PageInCach.GetPageData();
 	    	UpdateFavicon(PageNumber);
+	    	if (!NoNewCachEntry)
+	    		HistoryList.add(PageNumber); //Add to history
 	    	
 	    	if (!FavSwitchMode)
 	    	{
@@ -509,7 +551,7 @@ public class TextTV extends Activity {
 	    	if (PageList.length > 0)
 	    	{
 	    		//Prefetch new pages
-	    		DownlodPageThread DownlodThread = new DownlodPageThread(TextTV.this,PageList,Direction);        		
+	    		DownlodPageThread DownlodThread = new DownlodPageThread(TextTV.this,PageList,Direction,Theme);        		
 				DownlodThread.start();
 	    	}
 		}
@@ -527,7 +569,8 @@ public class TextTV extends Activity {
 			WaitingForPage = true;
 			WaitingForOnlinePage = false;
 			waitingfordata = ProgressDialog.show(TextTV.this,"TextTV","Laddar");
-			DownlodPageThread DownlodThread = new DownlodPageThread(TextTV.this,PageList,Direction);        		
+			waitingfordata.setContentView(R.layout.progress_dialog);
+			DownlodPageThread DownlodThread = new DownlodPageThread(TextTV.this,PageList,Direction,Theme);        		
 			DownlodThread.start();
 			
 			
@@ -573,8 +616,10 @@ public class TextTV extends Activity {
 			setIcon(android.R.drawable.ic_menu_close_clear_cancel);
 		menu.add(0, TextTV.MENU_ABOUT, 0, R.string.menu_about).
 			setIcon(android.R.drawable.ic_menu_help);
+		menu.add(0, TextTV.MENU_DONATE, 0, R.string.menu_donate).
+			setIcon(R.drawable.donate);
 		menu.add(0, TextTV.MENU_CONFIG, 0, R.string.menu_config).
-			setIcon(android.R.drawable.ic_menu_save);
+			setIcon(android.R.drawable.ic_menu_save);	
 		menu.add(0, TextTV.MENU_FAVORITES, 0, R.string.menu_favorites).
 			setIcon(R.drawable.ic_menu_star);
 		return true;
@@ -589,6 +634,9 @@ public class TextTV extends Activity {
 			return true;
 		case TextTV.MENU_ABOUT:
 			handleMenuAbout();
+			return true;
+		case TextTV.MENU_DONATE:
+			handleMenuDonate();
 			return true;
 		case TextTV.MENU_CONFIG:
 			handleMenuConfig();
@@ -630,6 +678,13 @@ public class TextTV extends Activity {
 			TextTV.this.startActivity(launchIntent);
 		}
 		
+		private void handleMenuDonate() {		
+			Intent browse = new Intent( Intent.ACTION_VIEW , Uri.parse("https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=QDQJP53LAHFEL"));			
+		    startActivity( browse );		    		    
+		}
+		
+		
+		
 		 		
 	Handler viewUpdateHandler = new Handler(){
 	        public void handleMessage(Message msg) {
@@ -650,7 +705,11 @@ public class TextTV extends Activity {
 	        		Toast toast = Toast.makeText(context, R.string.error_str, duration);
 	     			toast.show();
 	     			break;
+	             case MESSAGE_NEXT :
+	            	 NextPage();
+	            	 break;
 	             }
+	             
 	        }
 	};
 	
@@ -669,7 +728,7 @@ public class TextTV extends Activity {
         		CurrentPageNumber = FavDialogCursor.getInt(TextTVDBAdapter.INDEX_PAGE);
         		PageNumber.setText(String.valueOf(CurrentPageNumber));
         		        		
-		        RequestNewPage(CurrentPageNumber, false, DIR_NONE);
+		        RequestNewPage(CurrentPageNumber, false, DIR_NONE,false);
 		        FavDialogCursor.close();
 		    }
 		});
@@ -730,6 +789,7 @@ public class TextTV extends Activity {
 	
 	public void NextPage()
 	{
+		Log.d("TextTV", "NextPage start");
 		if (!WaitingForPage)
 		{
 			EditText PageNumber = (EditText) findViewById(R.id.PageNumber);
@@ -780,8 +840,9 @@ public class TextTV extends Activity {
     		//WebView WV = (WebView) findViewById(R.id.MainWebView);
     		//WV.startAnimation(SlidOutAnimation);        			        			        	
     		
-    		RequestNewPage(Page, false, TextTV.DIR_NEXT);
+    		RequestNewPage(Page, false, TextTV.DIR_NEXT,false);
 		}
+		Log.d("TextTV", "NextPage end");
 	}
 	
 	public void PrevPage()
@@ -837,7 +898,7 @@ public class TextTV extends Activity {
     		//WebView WV = (WebView) findViewById(R.id.MainWebView);
     		//WV.startAnimation(SlidOutAnimation);        			        			        	
     		
-    		RequestNewPage(Page, false, TextTV.DIR_PREV);
+    		RequestNewPage(Page, false, TextTV.DIR_PREV,false);
 		}
 	}
 	
@@ -874,8 +935,53 @@ public class TextTV extends Activity {
     		InputMethodManager imm = (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
     		imm.hideSoftInputFromWindow(PageNumber.getWindowToken(), 0);	        		
     		
-    		RequestNewPage(Page, true, DIR_NONE);
+    		RequestNewPage(Page, true, DIR_NONE,false);
 		}
 	}
+
+	@Override
+	public void onSharedPreferenceChanged(SharedPreferences sharedPreferences,
+			String key) {
+		Log.d(TAG,"Pref changed");
+		if (key.equals("theme")) 
+	    {
+			//Check if the value has changed
+			Integer NewTheme = Integer.valueOf(sharedPreferences.getString("theme", "0"));
+			if (NewTheme != Theme)
+			{
+				Theme = NewTheme;
+				PageCachHandler.ClearCach();
+				SetHeader();
+				LoadPage();
+			}	
+	    }
+		
+	}
+	
+	@Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {    	    
+        if ((keyCode == KeyEvent.KEYCODE_BACK) && (HistoryList.size() > 1)) 
+        {
+        	//Remove the last entry in the history list and execute
+        	//the previous one        	
+        	
+            int HistoryIndex = HistoryList.size()-1;        	
+            HistoryList.remove(HistoryIndex);
+            
+            int PrevPage = HistoryList.get(HistoryIndex-1); 
+            
+            //Request that page            
+            
+            RequestNewPage(PrevPage, false, TextTV.DIR_NONE,true);
+            
+            EditText PageNumberBox = (EditText) findViewById(R.id.PageNumber);
+			PageNumberBox.setText(String.valueOf(PrevPage));
+            
+        	return true;
+
+        }
+        return super.onKeyDown(keyCode, event);
+
+    } 
 
 }
