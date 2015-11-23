@@ -1,0 +1,1 @@
+Small simple Android application for showing the TextTV pages from swedish SVT
